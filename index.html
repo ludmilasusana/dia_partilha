@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sincronizador de Legendas - PADDE AES</title>
+    <style>
+        /* Estilos gerais para todos os elementos */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Estilos para o corpo da página */
+        body {
+            background: #001220; /* Cor de fundo escura */
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 100, 200, 0.2) 0%, transparent 20%), /* Gradiente radial para efeito visual */
+                radial-gradient(circle at 90% 80%, rgba(200, 0, 200, 0.2) 0%, transparent 20%);
+            color: white; /* Cor do texto principal */
+            min-height: 100vh; /* Altura mínima da viewport */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px; /* Preenchimento interno */
+            overflow: hidden; /* Oculta o estouro de conteúdo */
+        }
+        
+        /* Estilos para o contêiner principal */
+        .container {
+            max-width: 900px; /* Largura máxima */
+            width: 100%; /* Largura total */
+            margin: 0 auto; /* Centraliza o contêiner */
+            position: relative; /* Posição relativa para elementos internos */
+        }
+        
+        /* Estilos para o cabeçalho */
+        header {
+            text-align: center; /* Alinhamento do texto */
+            padding: 30px 20px; /* Preenchimento interno */
+            margin-bottom: 30px; /* Margem inferior */
+            background: rgba(0, 30, 60, 0.7); /* Fundo com transparência */
+            border-radius: 15px; /* Bordas arredondadas */
+            box-shadow: 0 0 30px rgba(0, 200, 255, 0.3); /* Sombra */
+            border: 1px solid rgba(0, 200, 255, 0.2); /* Borda */
+            position: relative; /* Posição relativa */
+            overflow: hidden; /* Oculta o estouro de conteúdo */
+            animation: fadeIn 1s ease-out; /* Animação de fade-in */
+            z-index: 10; /* Z-index para sobreposição */
+        }
+        
+        /* Pseudo-elemento para o efeito de fundo do cabeçalho */
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(45deg, 
+                transparent 48%, 
+                rgba(0, 200, 255, 0.1) 50%, 
+                transparent 52%); /* Gradiente linear para efeito de grade */
+            background-size: 10px 10px; /* Tamanho do fundo */
+            z-index: -1; /* Z-index para ficar atrás do conteúdo */
+        }
+        
+        /* Estilos para o título principal */
+        h1 {
+            font-size: 2.2rem; /* Tamanho da fonte */
+            margin-bottom: 10px; /* Margem inferior */
+            background: linear-gradient(90deg, #0ff, #f0f); /* Gradiente de cor de fundo */
+            -webkit-background-clip: text; /* Recorte de fundo para texto */
+            background-clip: text;
+            color: transparent; /* Torna o texto transparente para mostrar o gradiente */
+            text-shadow: 0 0 10px rgba(0, 200, 255, 0.3); /* Sombra do texto */
+            line-height: 1.4; /* Altura da linha */
+        }
+        
+        /* Estilos para o subtítulo */
+        .subtitle {
+            font-size: 1.2rem; /* Tamanho da fonte */
+            color: #aaa; /* Cor do texto */
+            margin-bottom: 15px; /* Margem inferior */
+        }
+        
+        /* Estilos para os contêineres dos oradores */
+        .speakers {
+            display: flex; /* Layout flexível */
+            justify-content: center; /* Centraliza horizontalmente */
+            gap: 30px; /* Espaçamento entre os itens */
+            margin-top: 20px; /* Margem superior */
+            flex-wrap: wrap; /* Quebra de linha para itens flexíveis */
+        }
+        
+        /* Estilos para cada orador */
+        .speaker {
+            display: flex; /* Layout flexível */
+            flex-direction: column; /* Direção da coluna */
+            align-items: center; /* Alinha itens ao centro */
+        }
+        
+        /* Estilos para o avatar do orador */
+        .speaker-avatar {
+            width: 80px; /* Largura */
+            height: 80px; /* Altura */
+            border-radius: 50%; /* Borda arredondada para círculo */
+            border: 2px solid #0ff; /* Borda */
+            background: linear-gradient(45deg, #0ff, #f0f); /* Gradiente de fundo */
+            display: flex; /* Layout flexível */
+            align-items: center; /* Alinha itens ao centro */
+            justify-content: center; /* Centraliza itens */
+            font-size: 2rem; /* Tamanho da fonte */
+            margin-bottom: 10px; /* Margem inferior */
+            box-shadow: 0 0 15px #0ff; /* Sombra */
+        }
+        
+        /* Estilos para a área de exibição do sintetizador */
+        .synthesizer-display {
+            background: rgba(0, 30, 60, 0.7); /* Fundo com transparência */
+            border-radius: 15px; /* Bordas arredondadas */
+            padding: 40px; /* Preenchimento interno */
+            min-height: 250px; /* Altura mínima */
+            display: flex; /* Layout flexível */
+            align-items: flex-end; /* Alinha itens à parte inferior */
+            justify-content: space-between; /* Distribui as barras uniformemente */
+            position: relative; /* Posição relativa */
+            overflow: hidden; /* Oculta o estouro de conteúdo */
+            animation: fadeIn 1.2s ease-out; /* Animação de fade-in */
+            box-shadow: 0 0 30px rgba(0, 200, 255, 0.1); /* Sombra */
+            border: 1px solid rgba(0, 200, 255, 0.1); /* Borda */
+            margin-top: 30px; /* Margem superior */
+        }
+
+        /* Estilos para as barras do sintetizador */
+        .synthesizer-bar {
+            width: 10px; /* Largura da barra */
+            height: 5px; /* Altura inicial da barra */
+            background: linear-gradient(to top, #0ff, #f0f); /* Gradiente de cor */
+            margin: 0 2px; /* Margem horizontal */
+            border-radius: 2px; /* Bordas arredondadas */
+            transform-origin: bottom; /* Origem da transformação */
+            transition: height 0.05s linear; /* Transição suave para a altura */
+            opacity: 0.7; /* Opacidade inicial */
+        }
+        
+        /* Estilos para a grade digital */
+        .digital-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 150, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 150, 255, 0.05) 1px, transparent 1px); /* Gradiente para grade */
+            background-size: 20px 20px; /* Tamanho do fundo */
+            z-index: 1; /* Z-index para sobreposição */
+        }
+        
+        /* Estilos para a onda digital */
+        .digital-wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(90deg, #0ff, #f0f); /* Gradiente de fundo */
+            opacity: 0.3; /* Opacidade */
+            animation: wave 10s infinite linear; /* Animação de onda */
+            mask: 
+                linear-gradient(90deg, 
+                transparent, 
+                rgba(0,0,0,0.8) 10%, 
+                rgba(0,0,0,0.8) 90%, 
+                transparent); /* Máscara para efeito de desvanecimento */
+        }
+        
+        /* Estilos para os efeitos visuais */
+        .visual-effects {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Ignora eventos do ponteiro */
+            z-index: 0; /* Z-index para ficar atrás */
+        }
+        
+        /* Estilos para as partículas digitais */
+        .digital-particle {
+            position: absolute;
+            width: 8px; /* Largura */
+            height: 8px; /* Altura */
+            border-radius: 50%; /* Borda arredondada para círculo */
+            background: #0ff; /* Cor de fundo */
+            box-shadow: 0 0 10px #0ff; /* Sombra */
+            animation: float 5s infinite ease-in-out; /* Animação de flutuação */
+        }
+        
+        /* Estilos para o indicador de progresso */
+        .progress-indicator {
+            position: absolute;
+            bottom: 20px; /* Posição inferior */
+            left: 50%; /* Posição à esquerda */
+            transform: translateX(-50%); /* Centraliza horizontalmente */
+            width: 200px; /* Largura */
+            height: 4px; /* Altura */
+            background: rgba(255, 255, 255, 0.2); /* Fundo com transparência */
+            border-radius: 2px; /* Bordas arredondadas */
+            overflow: hidden; /* Oculta o estouro de conteúdo */
+            opacity: 0.7; /* Opacidade */
+        }
+        
+        /* Estilos para a barra de progresso */
+        .progress-bar {
+            height: 100%; /* Altura total */
+            width: 0%; /* Largura inicial */
+            background: linear-gradient(90deg, #0ff, #f0f); /* Gradiente de fundo */
+            border-radius: 2px; /* Bordas arredondadas */
+            transition: width 0.1s linear; /* Transição suave da largura */
+        }
+
+        /* Estilos para o botão de iniciar */
+        .start-button {
+            background: linear-gradient(90deg, #0ff, #f0f);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 0 20px rgba(0, 200, 255, 0.5);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+        .start-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 200, 255, 0.8);
+        }
+        
+        /* Animação de fade-in */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Animação de onda */
+        @keyframes wave {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Animação de flutuação */
+        @keyframes float {
+            0% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-20px) translateX(10px); }
+            100% { transform: translateY(0) translateX(0); }
+        }
+        
+        /* Media queries para responsividade */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; } /* Reduz o tamanho da fonte do título */
+            .subtitle { font-size: 1rem; } /* Reduz o tamanho da fonte do subtítulo */
+            .synthesizer-display { font-size: 1.6rem; padding: 30px; min-height: 200px; } /* Ajusta o tamanho da fonte e preenchimento do display do sintetizador */
+            .speaker-avatar { width: 60px; height: 60px; font-size: 1.5rem; } /* Reduz o tamanho do avatar do orador */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header id="titleHeader">
+            <h1>Análise do Plano de Ação para o Desenvolvimento Digital das Escolas PADDE do AES</h1>
+            <div class="subtitle">Pelo "Organismo de Inteligência Digital Europeu da Educação"</div>
+            
+            <div class="speakers">
+                <div class="speaker">
+                    <div class="speaker-avatar">J</div>
+                    <div>Jorge Fimini</div>
+                </div>
+                <div class="speaker">
+                    <div class="speaker-avatar">A</div>
+                    <div>Andria Silva</div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="synthesizer-display" id="synthesizerDisplay">
+            <div class="digital-grid"></div>
+            <div class="digital-wave"></div>
+            <!-- As barras do sintetizador serão adicionadas aqui via JavaScript -->
+        </div>
+        
+        <div class="progress-indicator">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="visual-effects" id="visualEffects"></div>
+
+        <!-- Botão para iniciar a apresentação -->
+        <button id="startButton" class="start-button">Iniciar Apresentação</button>
+    </div>
+    
+    <!-- O elemento de áudio agora será usado para carregar o seu ficheiro -->
+    <!-- O atributo 'controls' foi removido e 'style="display: none;"' adicionado para ocultar o player -->
+    <audio id="audioPlayer" style="display: none;"></audio> 
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const audio = document.getElementById('audioPlayer');
+            const progressBar = document.getElementById('progressBar');
+            const visualEffects = document.getElementById('visualEffects');
+            const synthesizerDisplay = document.getElementById('synthesizerDisplay');
+            const startButton = document.getElementById('startButton');
+            
+            // Variáveis globais para a Web Audio API
+            let audioContext;
+            let analyser;
+            let dataArray;
+            let bufferLength;
+            let sourceNode; 
+
+            // Criar partículas digitais
+            function createDigitalParticles() {
+                for (let i = 0; i < 30; i++) {
+                    const particle = document.createElement('div');
+                    particle.classList.add('digital-particle');
+                    particle.style.left = `${Math.random() * 100}%`;
+                    particle.style.top = `${Math.random() * 100}%`;
+                    particle.style.animationDuration = `${Math.random() * 5 + 3}s`;
+                    particle.style.animationDelay = `${Math.random() * 2}s`;
+                    particle.style.opacity = Math.random() * 0.5 + 0.2;
+                    particle.style.width = `${Math.random() * 8 + 4}px`;
+                    particle.style.height = particle.style.width;
+                    visualEffects.appendChild(particle);
+                }
+            }
+
+            // Criar barras do sintetizador
+            function createSynthesizerBars() {
+                if (!analyser) {
+                    console.error("Analisador não inicializado. Chame setupAudioVisualization primeiro.");
+                    return;
+                }
+                const numberOfBars = bufferLength; 
+                synthesizerDisplay.innerHTML = ''; 
+                for (let i = 0; i < numberOfBars; i++) {
+                    const bar = document.createElement('div');
+                    bar.classList.add('synthesizer-bar');
+                    synthesizerDisplay.appendChild(bar);
+                }
+            }
+            
+            // Configurar a visualização de áudio a partir de um elemento de áudio
+            function setupAudioVisualization(audioElement) {
+                return new Promise((resolve, reject) => {
+                    // Crie o AudioContext apenas uma vez, e se estiver suspenso, retome-o
+                    if (!audioContext) {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    } else if (audioContext.state === 'suspended') {
+                        audioContext.resume().then(() => {
+                            console.log("AudioContext resumed successfully.");
+                        }).catch(e => {
+                            console.error("Erro ao retomar AudioContext:", e);
+                            reject(e);
+                            return;
+                        });
+                    }
+
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 256; 
+                    bufferLength = analyser.frequencyBinCount; 
+                    dataArray = new Uint8Array(bufferLength); 
+
+                    // Cria um nó de fonte a partir do elemento de áudio HTML, se ainda não tiver sido criado
+                    if (!sourceNode) {
+                        sourceNode = audioContext.createMediaElementSource(audioElement);
+                        sourceNode.connect(analyser);
+                        analyser.connect(audioContext.destination);
+                    }
+                    
+                    // Adiciona listeners para depuração do carregamento do áudio
+                    audioElement.addEventListener('canplaythrough', () => {
+                        console.log("Áudio: canplaythrough - O áudio pode ser reproduzido até ao fim.");
+                        resolve();
+                    });
+                    audioElement.addEventListener('error', (e) => {
+                        console.error("Erro ao carregar ou reproduzir o áudio:", audioElement.error);
+                        reject(new Error(`Erro de áudio: ${audioElement.error ? audioElement.error.code : 'Desconhecido'}`));
+                    });
+                    audioElement.addEventListener('stalled', () => {
+                        console.warn("Áudio: stalled - O download do áudio parou.");
+                    });
+                    audioElement.addEventListener('suspend', () => {
+                        console.warn("Áudio: suspend - O download do áudio foi suspenso.");
+                    });
+                    audioElement.addEventListener('abort', () => {
+                        console.warn("Áudio: abort - O carregamento do áudio foi abortado.");
+                    });
+
+                    // Se já estiver pronto (por exemplo, se o ficheiro for pequeno e carregar rápido)
+                    if (audioElement.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
+                        console.log("Áudio: readyState >= 3, resolvendo imediatamente.");
+                        resolve();
+                    }
+                });
+            }
+            
+            // Iniciar a apresentação
+            function startPresentation(duration) {
+                let currentTime = 0;
+                const totalDuration = duration || 110; 
+                
+                const timer = setInterval(() => {
+                    currentTime += 0.1;
+                    progressBar.style.width = `${(currentTime / totalDuration) * 100}%`;
+                    
+                    if (currentTime >= totalDuration) {
+                        clearInterval(timer);
+                    }
+                }, 100);
+            }
+
+            // Visualizar o áudio usando os dados do analisador
+            function visualizeAudio() {
+                const synthesizerBars = document.querySelectorAll('.synthesizer-bar');
+                const barCount = synthesizerBars.length;
+                const maxBarHeight = synthesizerDisplay.clientHeight * 0.8; 
+
+                function draw() {
+                    requestAnimationFrame(draw); 
+
+                    analyser.getByteFrequencyData(dataArray); 
+
+                    const step = Math.floor(bufferLength / barCount); 
+
+                    for (let i = 0; i < barCount; i++) {
+                        let sum = 0;
+                        for (let j = 0; j < step; j++) {
+                            const dataIndex = Math.min(i * step + j, bufferLength - 1);
+                            sum += dataArray[dataIndex];
+                        }
+                        const average = sum / step;
+
+                        const height = Math.max(5, (average / 255) * maxBarHeight); 
+                        synthesizerBars[i].style.height = `${height}px`;
+                        synthesizerBars[i].style.opacity = `${0.5 + (average / 255) * 0.5}`; 
+                    }
+                }
+                draw(); 
+            }
+            
+            // Inicializar partículas digitais
+            createDigitalParticles();
+            
+            // Define a fonte do áudio
+            // O link foi atualizado para o seu domínio Netlify e o nome do ficheiro de áudio.
+            // Certifique-se de que o ficheiro 'PADDE_AESILVES_2025_2027_avaliacao.wav' está na pasta raiz do seu deploy no Netlify.
+            audio.src = 'https://helpful-biscotti-3c38b6.netlify.app/PADDE_AESILVES_2025_2027_avaliacao.wav'; 
+            console.log("A tentar carregar áudio de:", audio.src);
+            audio.load(); // Carrega o áudio
+
+            // Adiciona um listener de evento para o botão de iniciar
+            startButton.addEventListener('click', () => {
+                startButton.style.display = 'none'; // Esconde o botão após o clique
+                setupAudioVisualization(audio).then(() => {
+                    createSynthesizerBars(); 
+                    startPresentation(audio.duration); 
+                    visualizeAudio(); 
+                    audio.play().catch(e => {
+                        console.error("Erro ao tentar reproduzir o áudio (play() promise):", e);
+                    });
+                }).catch(error => {
+                    console.error("Erro ao configurar a visualização de áudio (setupAudioVisualization promise):", error);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
