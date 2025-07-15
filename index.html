@@ -319,7 +319,7 @@
             const startButton = document.getElementById('startButton');
             
             // Variáveis globais para a Web Audio API
-            let audioContext;
+            let audioContext = null; // Inicializado como null
             let analyser;
             let dataArray;
             let bufferLength;
@@ -344,11 +344,12 @@
             // Criar barras do sintetizador
             function createSynthesizerBars() {
                 if (!analyser) {
-                    console.error("Analisador não inicializado. Chame setupAudioVisualization primeiro.");
+                    console.error("Analisador não inicializado. Chame setupAudioNodes primeiro.");
                     return;
                 }
-                const numberOfBars = bufferLength; 
-                synthesizerDisplay.innerHTML = ''; 
+                // Definir um número fixo de barras ou basear-se no tamanho do analisador
+                const numberOfBars = 64; // Um número razoável de barras para visualização
+                synthesizerDisplay.innerHTML = ''; // Limpa as barras existentes
                 for (let i = 0; i < numberOfBars; i++) {
                     const bar = document.createElement('div');
                     bar.classList.add('synthesizer-bar');
@@ -356,106 +357,78 @@
                 }
             }
             
-            // Configurar a visualização de áudio a partir de um elemento de áudio
-            function setupAudioVisualization(audioElement) {
-                return new Promise((resolve, reject) => {
-                    // Crie o AudioContext apenas uma vez, e se estiver suspenso, retome-o
-                    if (!audioContext) {
-                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    } else if (audioContext.state === 'suspended') {
-                        audioContext.resume().then(() => {
-                            console.log("AudioContext resumed successfully.");
-                        }).catch(e => {
-                            console.error("Erro ao retomar AudioContext:", e);
-                            reject(e);
-                            return;
-                        });
-                    }
+            // Configurar os nós de áudio (analisador, buffer, sourceNode)
+            // Esta função assume que audioContext já está ativo.
+            function setupAudioNodes(audioElement) {
+                if (!audioContext) {
+                    console.error("AudioContext não está inicializado. Não é possível configurar os nós de áudio.");
+                    return;
+                }
 
-                    analyser = audioContext.createAnalyser();
-                    analyser.fftSize = 256; 
-                    bufferLength = analyser.frequencyBinCount; 
-                    dataArray = new Uint8Array(bufferLength); 
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256; // Tamanho da FFT, afeta a granularidade da visualização
+                bufferLength = analyser.frequencyBinCount; // Metade do fftSize
+                dataArray = new Uint8Array(bufferLength); // Array para armazenar os dados de frequência
 
-                    // Cria um nó de fonte a partir do elemento de áudio HTML, se ainda não tiver sido criado
-                    if (!sourceNode) {
-                        sourceNode = audioContext.createMediaElementSource(audioElement);
-                        sourceNode.connect(analyser);
-                        analyser.connect(audioContext.destination);
-                    }
-                    
-                    // Adiciona listeners para depuração do carregamento do áudio
-                    audioElement.addEventListener('canplaythrough', () => {
-                        console.log("Áudio: canplaythrough - O áudio pode ser reproduzido até ao fim.");
-                        resolve();
-                    });
-                    audioElement.addEventListener('error', (e) => {
-                        console.error("Erro ao carregar ou reproduzir o áudio:", audioElement.error);
-                        reject(new Error(`Erro de áudio: ${audioElement.error ? audioElement.error.code : 'Desconhecido'}`));
-                    });
-                    audioElement.addEventListener('stalled', () => {
-                        console.warn("Áudio: stalled - O download do áudio parou.");
-                    });
-                    audioElement.addEventListener('suspend', () => {
-                        console.warn("Áudio: suspend - O download do áudio foi suspenso.");
-                    });
-                    audioElement.addEventListener('abort', () => {
-                        console.warn("Áudio: abort - O carregamento do áudio foi abortado.");
-                    });
-
-                    // Se já estiver pronto (por exemplo, se o ficheiro for pequeno e carregar rápido)
-                    if (audioElement.readyState >= 3) { // HAVE_FUTURE_DATA or HAVE_ENOUGH_DATA
-                        console.log("Áudio: readyState >= 3, resolvendo imediatamente.");
-                        resolve();
-                    }
-                });
+                // Cria um nó de fonte a partir do elemento de áudio HTML, se ainda não tiver sido criado
+                if (!sourceNode) {
+                    sourceNode = audioContext.createMediaElementSource(audioElement);
+                    sourceNode.connect(analyser); // Conecta a fonte ao analisador
+                    analyser.connect(audioContext.destination); // Conecta o analisador à saída de áudio
+                    console.log("Nós de áudio conectados.");
+                }
             }
             
-            // Iniciar a apresentação
+            // Iniciar a apresentação (barra de progresso)
             function startPresentation(duration) {
                 let currentTime = 0;
-                const totalDuration = duration || 110; 
+                const totalDuration = duration; // Usar a duração real do áudio
                 
                 const timer = setInterval(() => {
-                    currentTime += 0.1;
+                    // Usar o currentTime do áudio para maior precisão
+                    currentTime = audio.currentTime;
                     progressBar.style.width = `${(currentTime / totalDuration) * 100}%`;
                     
                     if (currentTime >= totalDuration) {
                         clearInterval(timer);
                     }
-                }, 100);
+                }, 100); // Atualiza a cada 100ms
             }
 
             // Visualizar o áudio usando os dados do analisador
             function visualizeAudio() {
                 const synthesizerBars = document.querySelectorAll('.synthesizer-bar');
                 const barCount = synthesizerBars.length;
-                const maxBarHeight = synthesizerDisplay.clientHeight * 0.8; 
+                const maxBarHeight = synthesizerDisplay.clientHeight * 0.8; // Altura máxima para as barras
 
                 function draw() {
-                    requestAnimationFrame(draw); 
+                    requestAnimationFrame(draw); // Loop de animação
 
-                    analyser.getByteFrequencyData(dataArray); 
+                    if (analyser && dataArray) { // Garante que o analisador e o array de dados existam
+                        analyser.getByteFrequencyData(dataArray); // Obtém os dados de frequência
 
-                    const step = Math.floor(bufferLength / barCount); 
+                        const step = Math.floor(bufferLength / barCount); // Passo para agrupar os dados de frequência
 
-                    for (let i = 0; i < barCount; i++) {
-                        let sum = 0;
-                        for (let j = 0; j < step; j++) {
-                            const dataIndex = Math.min(i * step + j, bufferLength - 1);
-                            sum += dataArray[dataIndex];
+                        for (let i = 0; i < barCount; i++) {
+                            let sum = 0;
+                            // Soma os valores de frequência para cada barra
+                            for (let j = 0; j < step; j++) {
+                                const dataIndex = Math.min(i * step + j, bufferLength - 1);
+                                sum += dataArray[dataIndex];
+                            }
+                            const average = sum / step; // Calcula a média
+
+                            // Ajusta a altura e opacidade da barra com base na média da frequência
+                            const height = Math.max(5, (average / 255) * maxBarHeight); // Altura mínima de 5px
+                            synthesizerBars[i].style.height = `${height}px`;
+                            synthesizerBars[i].style.opacity = `${0.5 + (average / 255) * 0.5}`; // Opacidade dinâmica
                         }
-                        const average = sum / step;
-
-                        const height = Math.max(5, (average / 255) * maxBarHeight); 
-                        synthesizerBars[i].style.height = `${height}px`;
-                        synthesizerBars[i].style.opacity = `${0.5 + (average / 255) * 0.5}`; 
                     }
                 }
-                draw(); 
+                draw(); // Inicia o loop de visualização
             }
             
-            // Inicializar partículas digitais
+            // Inicializar partículas digitais ao carregar a página
             createDigitalParticles();
             
             // Define a fonte do áudio
@@ -463,19 +436,56 @@
             console.log("A tentar carregar áudio de:", audio.src);
             audio.load(); // Carrega o áudio
 
+            // Adiciona um listener para quando os metadados do áudio forem carregados
+            audio.addEventListener('loadedmetadata', () => {
+                console.log("Metadados do áudio carregados. Duração:", audio.duration);
+            });
+
             // Adiciona um listener de evento para o botão de iniciar
-            startButton.addEventListener('click', () => {
+            startButton.addEventListener('click', async () => {
                 startButton.style.display = 'none'; // Esconde o botão após o clique
-                setupAudioVisualization(audio).then(() => {
-                    createSynthesizerBars(); 
-                    startPresentation(audio.duration); 
-                    visualizeAudio(); 
-                    audio.play().catch(e => {
-                        console.error("Erro ao tentar reproduzir o áudio (play() promise):", e);
-                    });
-                }).catch(error => {
-                    console.error("Erro ao configurar a visualização de áudio (setupAudioVisualization promise):", error);
-                });
+
+                // 1. Crie o AudioContext no primeiro clique do usuário
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    console.log("AudioContext criado.");
+                }
+
+                // 2. Resume o AudioContext se estiver suspenso (necessário para autoplay)
+                if (audioContext.state === 'suspended') {
+                    try {
+                        await audioContext.resume();
+                        console.log("AudioContext retomado com sucesso.");
+                    } catch (e) {
+                        console.error("Erro ao retomar AudioContext:", e);
+                        // Pode exibir uma mensagem de erro ao utilizador aqui
+                        return; // Para a execução se o contexto não puder ser retomado
+                    }
+                }
+
+                // 3. Tenta reproduzir o áudio. Isso deve ser a ação principal do clique.
+                try {
+                    await audio.play();
+                    console.log("Áudio a tocar.");
+
+                    // 4. Se o áudio começou a tocar, configure os nós de áudio e a visualização
+                    setupAudioNodes(audio); // Agora chamamos esta função para configurar o analisador
+                    createSynthesizerBars();
+
+                    // Inicia a barra de progresso e a visualização de áudio
+                    // Garante que a duração do áudio esteja disponível
+                    const checkDurationInterval = setInterval(() => {
+                        if (!isNaN(audio.duration) && audio.duration > 0) {
+                            clearInterval(checkDurationInterval);
+                            startPresentation(audio.duration);
+                            visualizeAudio();
+                        }
+                    }, 100); // Verifica a cada 100ms até a duração estar disponível
+                    
+                } catch (e) {
+                    console.error("Erro ao tentar reproduzir o áudio (play() promise):", e);
+                    // Exemplo: alert("O navegador bloqueou a reprodução automática. Por favor, interaja com a página.");
+                }
             });
         });
     </script>
